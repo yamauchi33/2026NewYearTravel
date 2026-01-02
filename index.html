@@ -1,0 +1,236 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>YAMA33 | Photo Journal</title>
+
+  <!-- favicon -->
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="shortcut icon" href="/favicon.png" type="image/png">
+
+  <!--iOS -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#fdfdfd">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      background-color: #fdfdfd;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #333;
+    }
+
+    header {
+      text-align: center;
+      padding: 60px 20px 20px;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      letter-spacing: 0.15em;
+      margin-bottom: 10px;
+    }
+    header p {
+      font-size: 0.95rem;
+      color: #777;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 1.3rem;
+      letter-spacing: 0.1em;
+      margin: 60px 0 20px;
+      position: relative;
+    }
+    .section-title::after {
+      content: "";
+      display: block;
+      width: 60px;
+      height: 2px;
+      background-color: #ccc;
+      margin: 10px auto 0;
+    }
+
+    .gallery {
+      column-count: 4;
+      column-gap: 12px;
+      padding: 0 1%;
+    }
+    .gallery img {
+      width: 100%;
+      margin-bottom: 12px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      cursor: zoom-in;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .gallery img.loaded {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    .gallery img:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+
+    @media (max-width: 1200px) {
+      .gallery { column-count: 3; padding: 0 5%; }
+    }
+
+    @media (max-width: 900px) {
+      .gallery { column-count: 2; padding: 0 5%; }
+    }
+    @media (max-width: 600px) {
+      .gallery { column-count: 1; padding: 0 5%; }
+    }
+
+    .lightbox {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 99999;
+    }
+    .lightbox img {
+      max-width: 90%;
+      max-height: 90%;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      cursor: zoom-out;
+    }
+    .lightbox.show {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    footer {
+      text-align: center;
+      color: #aaa;
+      font-size: 0.9rem;
+      padding: 50px 0;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>YAMA33</h1>
+    <p></p>
+  </header>
+
+  <div class="section-title">LIFE</div>
+  <div class="gallery" id="life"></div>
+
+  <div class="section-title">TRAVEL</div>
+  <div class="gallery" id="travel"></div>
+
+  <div class="section-title">FOOD</div>
+  <div class="gallery" id="food"></div>
+
+  <div class="lightbox" id="lightbox">
+    <img src="" alt="">
+  </div>
+
+  <footer>© 2025 YAMA33. All rights reserved.</footer>
+
+<script>
+  const sections = {
+    life: { folder: 'photos/life/', count: 50 },
+    travel: { folder: 'photos/travel/', count: 70 },
+    food: { folder: 'photos/food/', count: 20 }
+  };
+
+  const extensions = ['jpg', 'jpeg', 'png', 'webp'];
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = lightbox.querySelector('img');
+  const batchSize = 8;
+
+  // 创建图片
+  function createImage(src, container) {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      img.classList.add('loaded');
+      container.appendChild(img);
+      img.addEventListener('click', () => {
+        openLightbox(img.src);
+      });
+    };
+  }
+
+  // 分区加载
+  function setupGallery(key, folder, count) {
+    const container = document.getElementById(key);
+    let index = 1;
+
+    function loadNextBatch() {
+      const end = Math.min(index + batchSize - 1, count);
+      for (let i = index; i <= end; i++) {
+        for (let ext of extensions) {
+          const src = `${folder}${String(i).padStart(2, '0')}.${ext}`;
+          createImage(src, container);
+        }
+      }
+      index = end + 1;
+      if (index > count) observer.unobserve(trigger);
+    }
+
+    loadNextBatch();
+
+    const trigger = document.createElement('div');
+    trigger.className = 'load-trigger';
+    container.after(trigger);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && index <= count) loadNextBatch();
+      });
+    }, { rootMargin: '300px' });
+
+    observer.observe(trigger);
+  }
+
+  for (let key in sections) {
+    const { folder, count } = sections[key];
+    setupGallery(key, folder, count);
+  }
+
+  // 打开/关闭函数
+  function openLightbox(src) {
+    lightboxImg.src = src;
+    lightbox.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('show');
+    lightboxImg.src = '';
+    document.body.style.overflow = '';
+  }
+
+  // ✅ 点击任意位置（包括图片）都能关闭
+  lightbox.addEventListener('click', closeLightbox);
+  lightboxImg.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeLightbox();
+  });
+
+  // ✅ ESC 关闭
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
+</body>
+</html>
